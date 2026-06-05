@@ -1,34 +1,16 @@
-import AppError from '../utils/AppError.js';
+import { processAadhaar as processOcr } from '../services/ocr.service.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import { HTTP_STATUS } from '../constants/index.js';
+import { catchAsync } from '../utils/catchAsync.js';
 
-const processAadhaar = async (req, res, next) => {
-  try {
-    // 1. Validate files presence
-    if (!req.files || !req.files.frontImage || !req.files.backImage) {
-      throw new AppError('Both frontImage and backImage are required.', 400);
-    }
+const processAadhaar = catchAsync(async (req, res) => {
+  const frontFile = req.files.frontImage[0];
+  const backFile = req.files.backImage[0];
 
-    const frontFile = req.files.frontImage[0];
-    const backFile = req.files.backImage[0];
+  const result = await processOcr(frontFile, backFile);
 
-    // Dummy response for Stage 1 / Stage 2 integration testing
-    const dummyResult = {
-      name: "SHYAM SUNDAR S",
-      aadhaarNumber: "9087 6543 2109",
-      dob: "15/08/1998",
-      gender: "Male",
-      address: "123, Gandhi Road, Chennai, Tamil Nadu - 600001",
-      rawText: `[Dummy front OCR text for ${frontFile.originalname}]\n[Dummy back OCR text for ${backFile.originalname}]`
-    };
-
-    return res.status(200).json({
-      status: 'success',
-      data: dummyResult
-    });
-
-  } catch (err) {
-    next(err);
-  }
-};
+  return ApiResponse.success(res, result, 'Aadhaar processed successfully', HTTP_STATUS.OK);
+});
 
 export default {
   processAadhaar

@@ -1,17 +1,15 @@
 import multer from 'multer';
 import AppError from '../utils/AppError.js';
+import ApiResponse from '../utils/ApiResponse.js';
+import { HTTP_STATUS } from '../constants/index.js';
 
-// Global error handler middleware
 const errorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
-  // Log error stack for debugging
   console.error('--- ERROR DETECTED ---');
   console.error(err);
   console.error('----------------------');
 
-  // 1. Handle Multer Specific Errors (Request Level / File Upload Level)
   if (err instanceof multer.MulterError) {
     let message = 'File upload error.';
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -19,37 +17,16 @@ const errorHandler = (err, req, res, next) => {
     } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
       message = 'Unexpected field in upload request.';
     }
-    return res.status(400).json({
-      status: 'fail',
-      error: {
-        type: 'UploadError',
-        message
-      }
-    });
+    return ApiResponse.fail(res, message, HTTP_STATUS.BAD_REQUEST);
   }
 
-  // 2. Handle Custom Request / Operational Errors (AppError)
   if (err.isOperational) {
-    return res.status(err.statusCode).json({
-      status: err.status,
-      error: {
-        type: err.constructor.name,
-        message: err.message
-      }
-    });
+    return ApiResponse.fail(res, err.message, statusCode);
   }
 
-  // 3. Handle Other General/Global/System level errors (Programmer or System level)
-  // Hide details in production environment if config exists, otherwise output detail for dev
   const isDev = process.env.NODE_ENV !== 'production';
-  return res.status(err.statusCode).json({
-    status: 'error',
-    error: {
-      type: 'ServerError',
-      message: isDev ? err.message : 'Internal server error',
-      ...(isDev && { stack: err.stack })
-    }
-  });
+  const message = isDev ? err.message : 'Internal server error';
+  return ApiResponse.error(res, message, statusCode);
 };
 
 export default errorHandler;
