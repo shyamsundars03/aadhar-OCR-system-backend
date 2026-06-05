@@ -3,6 +3,7 @@ import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
+// eslint-disable-next-line no-unused-vars
 const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
