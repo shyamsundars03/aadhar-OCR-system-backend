@@ -1,22 +1,21 @@
-import Tesseract from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
 import { parse } from '../utils/aadhaarParser.js';
 import AppError from '../utils/AppError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
 export const processAadhaar = async (frontFile, backFile) => {
+  const worker = await createWorker('eng');
   try {
-    const config = {
+    await worker.setParameters({
       tessedit_pageseg_mode: '11', 
-    };
+    });
 
-    const frontOcr = await Tesseract.recognize(frontFile.buffer, 'eng', { logger: m => console.log(m) }, config);
+    const frontOcr = await worker.recognize(frontFile.buffer);
     const frontText = frontOcr.data.text;
 
-    const backOcr = await Tesseract.recognize(backFile.buffer, 'eng', { logger: m => console.log(m) }, config);
+    const backOcr = await worker.recognize(backFile.buffer);
     const backText = backOcr.data.text;
 
-
-    
     const frontParsed = parse(frontText);
     const backParsed = parse(backText);
     
@@ -43,5 +42,7 @@ export const processAadhaar = async (frontFile, backFile) => {
       throw error;
     }
     throw new AppError(`OCR Processing failed: ${error.message}`, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+  } finally {
+    await worker.terminate();
   }
 };
