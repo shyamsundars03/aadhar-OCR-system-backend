@@ -1,10 +1,16 @@
 import express from 'express';
-import cors from 'cors';
+import morgan from 'morgan';
+import corsMiddleware from './src/config/cors.js';
+import ocrRoutes from './src/routes/ocr.routes.js';
+import errorHandler from './src/middleware/errorHandler.js';
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// Request logging middleware
+app.use(morgan('dev'));
+
+// CORS and JSON middlewares
+app.use(corsMiddleware);
 app.use(express.json());
 
 // Routes
@@ -15,5 +21,10 @@ app.get('/api/status', (req, res) => {
     timestamp: new Date()
   });
 });
+
+app.use('/api/ocr', ocrRoutes);
+
+// Global Error Handling Middleware (must be at the end)
+app.use(errorHandler);
 
 export default app;
