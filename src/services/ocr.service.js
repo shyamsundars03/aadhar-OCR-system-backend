@@ -1,10 +1,19 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createWorker } from 'tesseract.js';
 import { parse } from '../utils/aadhaarParser.js';
 import AppError from '../utils/AppError.js';
 import { HTTP_STATUS } from '../constants/index.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const processAadhaar = async (frontFile, backFile) => {
-  const worker = await createWorker('eng');
+  const tessdataPath = path.join(__dirname, '..', 'tessdata');
+  const worker = await createWorker('eng', 1, {
+    langPath: tessdataPath,
+    gzip: false
+  });
   try {
     await worker.setParameters({
       tessedit_pageseg_mode: '11', 

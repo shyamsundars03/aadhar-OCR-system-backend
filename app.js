@@ -6,14 +6,11 @@ import errorHandler from './src/middleware/errorHandler.js';
 
 const app = express();
 
-// Request logging middleware
 app.use(morgan('dev'));
 
-// CORS and JSON middlewares
 app.use(corsMiddleware);
 app.use(express.json());
 
-// Routes
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'success',
@@ -24,7 +21,6 @@ app.get('/api/status', (req, res) => {
 
 app.use('/api/ocr', ocrRoutes);
 
-// Global Error Handling Middleware (must be at the end)
 app.use(errorHandler);
 
 export default app;
