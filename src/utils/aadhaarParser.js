@@ -20,14 +20,26 @@ export const parse = (rawText) => {
 
 
   let aadhaarNumber = null;
+  let aadhaarSuffix = null; 
+
+  
   const aadhaarRegex = /\b\d{4}\s\d{4}\s\d{4}\b/;
   const aadhaarMatch = rawText.match(aadhaarRegex);
   if (aadhaarMatch) {
     aadhaarNumber = aadhaarMatch[0].replace(/\s+/g, '');
+    aadhaarSuffix = aadhaarNumber.slice(-4);
   } else {
     const contiguousMatch = rawText.match(/\b\d{12}\b/);
     if (contiguousMatch) {
       aadhaarNumber = contiguousMatch[0];
+      aadhaarSuffix = aadhaarNumber.slice(-4);
+    } else {
+
+      const maskedMatch = rawText.match(/(?<!\d)(\d{4})(?!\d)/g);
+      if (maskedMatch) {
+        
+        aadhaarSuffix = maskedMatch[maskedMatch.length - 1];
+      }
     }
   }
 
@@ -138,6 +150,7 @@ export const parse = (rawText) => {
   return {
     name,
     aadhaarNumber,
+    aadhaarSuffix,
     dob,
     gender,
     address,
