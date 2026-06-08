@@ -8,26 +8,37 @@ import { HTTP_STATUS } from '../constants/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const processAadhaar = async (frontFile, backFile) => {
-  const tessdataPath = path.join(__dirname, '..', 'tessdata');
+const createOcrWorker = async (tessdataPath) => {
   const worker = await createWorker('eng', 1, {
     langPath: tessdataPath,
     gzip: false
   });
+  await worker.setParameters({ tessedit_pageseg_mode: '11' });
+  return worker;
+};
+
+export const processAadhaar = async (frontFile, backFile) => {
+  const tessdataPath = path.join(__dirname, '..', 'tessdata');
+
+  // Initialize both workers in parallel to cut startup time roughly in half
+  const [frontWorker, backWorker] = await Promise.all([
+    createOcrWorker(tessdataPath),
+    createOcrWorker(tessdataPath)
+  ]);
+
   try {
-    await worker.setParameters({
-      tessedit_pageseg_mode: '11', 
-    });
+    // Run both OCR jobs concurrently instead of sequentially
+    const [frontOcr, backOcr] = await Promise.all([
+      frontWorker.recognize(frontFile.buffer),
+      backWorker.recognize(backFile.buffer)
+    ]);
 
-    const frontOcr = await worker.recognize(frontFile.buffer);
     const frontText = frontOcr.data.text;
-
-    const backOcr = await worker.recognize(backFile.buffer);
     const backText = backOcr.data.text;
 
     const frontParsed = parse(frontText);
     const backParsed = parse(backText);
-    
+
     if (frontParsed.aadhaarNumber && backParsed.aadhaarNumber && frontParsed.aadhaarNumber !== backParsed.aadhaarNumber) {
       throw new AppError(
         'The Aadhaar numbers on the front and back images do not match. Please upload images of the same Aadhaar card.',
@@ -52,6 +63,7 @@ export const processAadhaar = async (frontFile, backFile) => {
     }
     throw new AppError(`OCR Processing failed: ${error.message}`, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   } finally {
-    await worker.terminate();
+    // Terminate both workers, even if one threw an error
+    await Promise.allSettled([frontWorker.terminate(), backWorker.terminate()]);
   }
 };
