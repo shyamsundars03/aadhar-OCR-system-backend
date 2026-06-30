@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import morgan from 'morgan';
 import corsMiddleware from './src/config/cors.js';
 import ocrRoutes from './src/routes/ocr.routes.js';
@@ -11,7 +11,7 @@ app.use(morgan('dev'));
 app.use(corsMiddleware);
 app.use(express.json());
 
-app.get('/api/status', (req, res) => {
+app.get('/api/status', (req: Request, res: Response) => {
   res.json({
     status: 'success',
     message: 'Aadhar OCR System Backend is running!',

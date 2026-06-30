@@ -15,5 +15,5 @@ export const aadhaarUploadSchema = z.object({
   files: z.object({
     frontImage: z.array(fileSchema).min(1, 'Front image is required').max(1),
     backImage: z.array(fileSchema).min(1, 'Back image is required').max(1)
-  }, { required_error: 'Both front and back images are required' })
+  })
 });
