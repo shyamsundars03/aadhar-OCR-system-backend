@@ -35,9 +35,11 @@ export const parse = (rawText: string | null | undefined): IAadhaarData => {
       aadhaarNumber = contiguousMatch[0];
       aadhaarSuffix = aadhaarNumber.slice(-4);
     } else {
-      const maskedMatch = rawTextClean.match(/(?<!\d)(\d{4})(?!\d)/g);
+      // Look for masked pattern specifically (e.g. XXXX XXXX 1234, xxxx-xxxx-1234, **** **** 1234)
+      const maskedRegex = /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*)(\d{4})\b/;
+      const maskedMatch = rawTextClean.match(maskedRegex);
       if (maskedMatch) {
-        aadhaarSuffix = maskedMatch[maskedMatch.length - 1];
+        aadhaarSuffix = maskedMatch[1];
       }
     }
   }
