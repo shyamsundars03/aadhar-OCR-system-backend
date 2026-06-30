@@ -1,8 +1,11 @@
-export const parse = (rawText) => {
+import { IAadhaarData } from '../types/aadhaar.types.js';
+
+export const parse = (rawText: string | null | undefined): IAadhaarData => {
   if (!rawText) {
     return {
       name: null,
       aadhaarNumber: null,
+      aadhaarSuffix: null,
       dob: null,
       gender: null,
       address: null,
@@ -12,67 +15,65 @@ export const parse = (rawText) => {
 
   // Strip non-ASCII characters to remove native language scripts
   const cleanedText = rawText.replace(/[^\x20-\x7E\n\r]/g, '');
-  rawText = cleanedText;
+  const rawTextClean = cleanedText;
 
   console.log("========== RAW OCR TEXT ==========");
-  console.log(rawText);
+  console.log(rawTextClean);
   console.log("==================================");
 
+  let aadhaarNumber: string | null = null;
+  let aadhaarSuffix: string | null = null; 
 
-  let aadhaarNumber = null;
-  let aadhaarSuffix = null; 
-
-  
   const aadhaarRegex = /\b\d{4}\s\d{4}\s\d{4}\b/;
-  const aadhaarMatch = rawText.match(aadhaarRegex);
+  const aadhaarMatch = rawTextClean.match(aadhaarRegex);
   if (aadhaarMatch) {
     aadhaarNumber = aadhaarMatch[0].replace(/\s+/g, '');
     aadhaarSuffix = aadhaarNumber.slice(-4);
   } else {
-    const contiguousMatch = rawText.match(/\b\d{12}\b/);
+    const contiguousMatch = rawTextClean.match(/\b\d{12}\b/);
     if (contiguousMatch) {
       aadhaarNumber = contiguousMatch[0];
       aadhaarSuffix = aadhaarNumber.slice(-4);
     } else {
-
-      const maskedMatch = rawText.match(/(?<!\d)(\d{4})(?!\d)/g);
+      //(e.g. XXXX XXXX 1234, xxxx-xxxx-1234, **** **** 1234)
+      const maskedRegex = /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*)(\d{4})\b/;
+      const maskedMatch = rawTextClean.match(maskedRegex);
       if (maskedMatch) {
-        
-        aadhaarSuffix = maskedMatch[maskedMatch.length - 1];
+        aadhaarSuffix = maskedMatch[1];
       }
     }
   }
 
-  let dob = null;
+  let dob: string | null = null;
   const dobRegex = /(?:D[O0]B|D\.O\.B|Date of Birth|birth)[:\s]*(\d{2}[/-]\d{2}[/-]\d{4})/i;
-  const dobMatch = rawText.match(dobRegex);
+  const dobMatch = rawTextClean.match(dobRegex);
   if (dobMatch) {
     dob = dobMatch[1];
   } else {
-    const genericDateMatch = rawText.match(/\b(\d{2}[/-]\d{2}[/-]\d{4})\b/);
+    const genericDateMatch = rawTextClean.match(/\b(\d{2}[/-]\d{2}[/-]\d{4})\b/);
     if (genericDateMatch) {
       dob = genericDateMatch[1];
     } else {
       const yobRegex = /(?:Year of Birth|YOB)[:\s]*(\d{4})/i;
-      const yobMatch = rawText.match(yobRegex);
+      const yobMatch = rawTextClean.match(yobRegex);
       if (yobMatch) {
         dob = yobMatch[1];
       }
     }
   }
 
-  let gender = null;
-  if (/female|महिला|fem/i.test(rawText)) {
+  let gender: string | null = null;
+  if (/female|महिला|fem/i.test(rawTextClean)) {
     gender = 'Female';
-  } else if (/male|पुरुष/i.test(rawText)) {
+  } else if (/male|पुरुष/i.test(rawTextClean)) {
     gender = 'Male';
   }
 
-  let name = null;
-  const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  let name: string | null = null;
+  const lines = rawTextClean.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
   const skipKeywords = [
-    'government', 'india', 'government of india', 'भारत', 'सरकार', 'भारत सरकार',
+    'government', 'india', 'government of india', 'भारत', 'सरकार', 'भारत government', 'भारत सरकार',
     'unique', 'identification', 'authority', 'authority of india',
     'enrollment', 'enrolment', 'male', 'female', 'dob', 'date', 'birth',
     'year', 'yob', 'aadhaar', 'address', 'signature', 'thumb', 'father',
@@ -98,7 +99,6 @@ export const parse = (rawText) => {
         const lowerLine = cleanLine.toLowerCase();
         const shouldSkip = skipKeywords.some(keyword => lowerLine.includes(keyword));
         if (!shouldSkip) {
-          // Remove stray 1-2 lowercase letters at the beginning of the name (e.g. "pc ")
           name = cleanLine.replace(/^[a-z]{1,2}\s+/g, '').trim();
           break;
         }
@@ -106,12 +106,10 @@ export const parse = (rawText) => {
     }
   }
 
-  // Removed top-down search fallback for Name to strictly require DOB.
-
-  let address = null;
-  const addressIndex = rawText.search(/(?:Address|पता|S\/O|D\/O|W\/O|C\/O)[:\s]/i);
+  let address: string | null = null;
+  const addressIndex = rawTextClean.search(/(?:Address|पता|S\/O|D\/O|W\/O|C\/O)[:\s]/i);
   if (addressIndex !== -1) {
-    let rawAddress = rawText.substring(addressIndex);
+    let rawAddress = rawTextClean.substring(addressIndex);
     rawAddress = rawAddress.replace(/^(?:Address|पता|S\/O|D\/O|W\/O|C\/O)[:\s,-]+/i, '').trim();
     rawAddress = rawAddress.split('\n')
       .map(line => line.trim())
@@ -135,8 +133,8 @@ export const parse = (rawText) => {
     
     if (pinLineIndex !== -1) {
       const startIndex = Math.max(0, pinLineIndex - 4);
-      let addressLines = lines.slice(startIndex, pinLineIndex + 1);
-      let joined = addressLines.join(', ');
+      const addressLines = lines.slice(startIndex, pinLineIndex + 1);
+      const joined = addressLines.join(', ');
       
       const pinMatch = joined.match(/([\s\S]*?\b\d{6}\b)/);
       if (pinMatch) {
@@ -154,6 +152,6 @@ export const parse = (rawText) => {
     dob,
     gender,
     address,
-    rawText
+    rawText: rawTextClean
   };
 };

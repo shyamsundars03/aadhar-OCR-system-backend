@@ -3,4 +3,4 @@ export const HTTP_MESSAGE = {
   FAIL: 'fail',
   ERROR: 'error',
   AADHAAR_PROCESSED_SUCCESS: 'Aadhaar processed successfully'
-};
+} as const;
