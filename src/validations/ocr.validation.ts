@@ -7,7 +7,9 @@ const fileSchema = z.object({
   mimetype: z.string().refine(val => ['image/jpeg', 'image/png', 'image/jpg'].includes(val), {
     message: 'Only JPEG, JPG, and PNG images are allowed'
   }),
-  buffer: z.any(),
+  buffer: z.custom<Buffer>(val => Buffer.isBuffer(val), {
+    message: 'Expected a file buffer'
+  }),
   size: z.number().max(5 * 1024 * 1024, 'File size cannot exceed 5MB')
 });
 

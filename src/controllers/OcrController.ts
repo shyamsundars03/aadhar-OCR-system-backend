@@ -14,7 +14,7 @@ export class OcrController {
     this.ocrService = ocrService;
   }
 
-  public processAadhaar = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  public processAadhaar = catchAsync(async (req: Request, res: Response, _next: NextFunction) => {
     const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
     
     if (!files || !files.frontImage || !files.frontImage[0] || !files.backImage || !files.backImage[0]) {

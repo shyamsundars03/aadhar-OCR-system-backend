@@ -2,32 +2,42 @@ import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import AppError from '../utils/AppError.js';
 import ApiResponse from '../utils/ApiResponse.js';
-import { HTTP_STATUS } from '../constants/httpStatus.js';
+import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  const statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
+export const errorHandler = (err: unknown, req: Request, res: Response, next: NextFunction) => {
+  let statusCode: number = HTTP_STATUS.INTERNAL_SERVER_ERROR;
+  let message = 'Internal server error';
 
   console.error('--- ERROR DETECTED ---');
   console.error(err);
   console.error('----------------------');
 
   if (err instanceof multer.MulterError) {
-    let message = 'File upload error.';
+    message = ERROR_MESSAGES.UPLOAD_ERROR;
     if (err.code === 'LIMIT_FILE_SIZE') {
-      message = 'File size is too large. Max limit is 2MB.';
+      message = ERROR_MESSAGES.FILE_TOO_LARGE;
     } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-      message = 'Unexpected field in upload request.';
+      message = ERROR_MESSAGES.UNEXPECTED_FIELD;
     }
     return ApiResponse.fail(res, message, HTTP_STATUS.BAD_REQUEST);
   }
 
   if (err instanceof AppError && err.isOperational) {
-    return ApiResponse.fail(res, err.message, statusCode);
+    return ApiResponse.fail(res, err.message, err.statusCode);
   }
 
-  const isDev = process.env.NODE_ENV !== 'production';
-  const message = isDev ? (err.message || String(err)) : 'Internal server error';
+  if (err instanceof Error) {
+    const isDev = process.env.NODE_ENV !== 'production';
+    message = isDev ? err.message : 'Internal server error';
+    if ('statusCode' in err) {
+      const customCode = (err as { statusCode: unknown }).statusCode;
+      if (typeof customCode === 'number') {
+        statusCode = customCode;
+      }
+    }
+  }
+
   return ApiResponse.error(res, message, statusCode);
 };
 

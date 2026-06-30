@@ -4,7 +4,7 @@ import { IAadhaarRepository } from '../interfaces/IAadhaarRepository.interface.j
 import { IAadhaarData, IUploadedFile } from '../types/aadhaar.types.js';
 import { parse } from '../utils/aadhaarParser.js';
 import AppError from '../utils/AppError.js';
-import { HTTP_STATUS } from '../constants/httpStatus.js';
+import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/index.js';
 
 export class AadhaarOcrService implements IAadhaarOcrService {
   private ocrEngine: IOcrEngine;
@@ -32,15 +32,9 @@ export class AadhaarOcrService implements IAadhaarOcrService {
       const backSuffix = backParsed.aadhaarSuffix;
 
       if (frontFull && backFull && frontFull !== backFull) {
-        throw new AppError(
-          'The Aadhaar numbers on the front and back images do not match. Please upload images of the same Aadhaar card.',
-          HTTP_STATUS.BAD_REQUEST
-        );
+        throw new AppError(ERROR_MESSAGES.AADHAAR_NUMBERS_MISMATCH, HTTP_STATUS.BAD_REQUEST);
       } else if (frontSuffix && backSuffix && frontSuffix !== backSuffix) {
-        throw new AppError(
-          'The Aadhaar numbers on the front and back images do not match. Please upload images of the same Aadhaar card.',
-          HTTP_STATUS.BAD_REQUEST
-        );
+        throw new AppError(ERROR_MESSAGES.AADHAAR_NUMBERS_MISMATCH, HTTP_STATUS.BAD_REQUEST);
       }
 
       const combinedText = `${frontText}\n${backText}`;
@@ -52,10 +46,7 @@ export class AadhaarOcrService implements IAadhaarOcrService {
       }
 
       if (!parsedData.aadhaarNumber && !parsedData.name) {
-        throw new AppError(
-          'Failed to extract valid Aadhaar information. Please upload clear, high-resolution front and back images of the card.',
-          HTTP_STATUS.BAD_REQUEST
-        );
+        throw new AppError(ERROR_MESSAGES.FAILED_TO_EXTRACT, HTTP_STATUS.BAD_REQUEST);
       }
 
       // Save to repository (Database abstraction)
@@ -66,8 +57,10 @@ export class AadhaarOcrService implements IAadhaarOcrService {
       if (error instanceof AppError) {
         throw error;
       }
-      const message = error instanceof Error ? error.message : String(error);
-      throw new AppError(`OCR Processing failed: ${message}`, HTTP_STATUS.INTERNAL_SERVER_ERROR);
+      const message = error instanceof Error
+        ? `${ERROR_MESSAGES.PROCESSING_FAILED}: ${error.message}`
+        : ERROR_MESSAGES.PROCESSING_FAILED;
+      throw new AppError(message, HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
   }
 }

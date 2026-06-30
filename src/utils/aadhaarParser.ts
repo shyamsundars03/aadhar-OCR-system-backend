@@ -35,7 +35,7 @@ export const parse = (rawText: string | null | undefined): IAadhaarData => {
       aadhaarNumber = contiguousMatch[0];
       aadhaarSuffix = aadhaarNumber.slice(-4);
     } else {
-      // Look for masked pattern specifically (e.g. XXXX XXXX 1234, xxxx-xxxx-1234, **** **** 1234)
+      //(e.g. XXXX XXXX 1234, xxxx-xxxx-1234, **** **** 1234)
       const maskedRegex = /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*)(\d{4})\b/;
       const maskedMatch = rawTextClean.match(maskedRegex);
       if (maskedMatch) {
@@ -133,8 +133,8 @@ export const parse = (rawText: string | null | undefined): IAadhaarData => {
     
     if (pinLineIndex !== -1) {
       const startIndex = Math.max(0, pinLineIndex - 4);
-      let addressLines = lines.slice(startIndex, pinLineIndex + 1);
-      let joined = addressLines.join(', ');
+      const addressLines = lines.slice(startIndex, pinLineIndex + 1);
+      const joined = addressLines.join(', ');
       
       const pinMatch = joined.match(/([\s\S]*?\b\d{6}\b)/);
       if (pinMatch) {

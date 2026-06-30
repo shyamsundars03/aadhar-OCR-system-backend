@@ -1,4 +1,4 @@
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM } from 'tesseract.js';
 import { IOcrEngine } from '../interfaces/IOcrEngine.interface.js';
 
 export class TesseractOcrEngine implements IOcrEngine {
@@ -13,9 +13,9 @@ export class TesseractOcrEngine implements IOcrEngine {
       langPath: this.tessdataPath,
       gzip: false
     });
-    
+
     try {
-      await worker.setParameters({ tessedit_pageseg_mode: '11' as any });
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
       const result = await worker.recognize(buffer);
       return result.data.text;
     } finally {
