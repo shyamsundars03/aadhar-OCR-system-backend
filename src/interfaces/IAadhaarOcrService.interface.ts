@@ -1,5 +1,10 @@
 import { IAadhaarData, IUploadedFile } from '../types/aadhaar.types.js';
 
+export interface IAadhaarUploadPayload {
+  frontFile: IUploadedFile;
+  backFile: IUploadedFile;
+}
+
 export interface IAadhaarOcrService {
-  processAadhaar(frontFile: IUploadedFile, backFile: IUploadedFile): Promise<IAadhaarData>;
+  processAadhaar(payload: IAadhaarUploadPayload): Promise<IAadhaarData>;
 }

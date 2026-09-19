@@ -2,7 +2,7 @@ import express from 'express';
 import upload from '../middleware/upload.js';
 import { ocrController } from '../config/dependencyInjection.js';
 import { validate } from '../middleware/validate.js';
-import { aadhaarUploadSchema } from '../validations/ocr.validation.js';
+import { aadhaarUploadSchema } from '../validations/aadhaar.schema.js';
 
 const router = express.Router();
 
