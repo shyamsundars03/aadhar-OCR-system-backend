@@ -42,14 +42,29 @@ export class AadhaarValidationService {
   ];
 
   public verifyDocument(frontText: string, backText: string): IAadhaarVerificationResult {
-    let score = 0;
-    const reasons: string[] = [];
-
     const lowerFront = (frontText || '').toLowerCase();
     const lowerBack = (backText || '').toLowerCase();
     const combinedText = `${lowerFront}\n${lowerBack}`;
 
-    // 1. Check for Duplicate Side Uploads (Two Fronts or Two Backs)
+    // 1. Verify Front Image Individually
+    const isFrontValid = this.isFrontSideAadhaar(lowerFront);
+    if (!isFrontValid) {
+      throw new AppError(
+        'The uploaded front image is not recognized as a valid Aadhaar card. Please upload a clear photo of the front side of an Aadhaar card.',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // 2. Verify Back Image Individually
+    const isBackValid = this.isBackSideAadhaar(lowerBack);
+    if (!isBackValid) {
+      throw new AppError(
+        'The uploaded back image is not recognized as a valid Aadhaar card. Please upload a clear photo of the back side of an Aadhaar card.',
+        HTTP_STATUS.BAD_REQUEST
+      );
+    }
+
+    // 3. Check for Duplicate Side Uploads (Two Fronts or Two Backs)
     const hasFrontDOB = /(?:dob|d\.o\.b|date of birth|year of birth)/i.test(lowerFront);
     const hasBackDOB = /(?:dob|d\.o\.b|date of birth|year of birth)/i.test(lowerBack);
     const hasFrontAddress = /(?:address|पता|s\/o|d\/o|w\/o|c\/o)/i.test(lowerFront);
@@ -69,7 +84,10 @@ export class AadhaarValidationService {
       );
     }
 
-    // 2. Keyword check for front side
+    // 4. Combined Score Calculation
+    let score = 0;
+    const reasons: string[] = [];
+
     let frontKeywordCount = 0;
     for (const kw of AadhaarValidationService.FRONT_KEYWORDS) {
       if (lowerFront.includes(kw)) {
@@ -81,7 +99,6 @@ export class AadhaarValidationService {
       reasons.push(`Matched ${frontKeywordCount} front Aadhaar document keywords`);
     }
 
-    // 3. Keyword check for back side
     let backKeywordCount = 0;
     for (const kw of AadhaarValidationService.BACK_KEYWORDS) {
       if (lowerBack.includes(kw)) {
@@ -93,7 +110,6 @@ export class AadhaarValidationService {
       reasons.push(`Matched ${backKeywordCount} back Aadhaar document keywords`);
     }
 
-    // 4. Aadhaar number pattern check & Verhoeff algorithm validation
     const aadhaarMatches = combinedText.match(/\b\d{4}\s?\d{4}\s?\d{4}\b/g) || [];
     let validVerhoeffFound = false;
 
@@ -108,14 +124,11 @@ export class AadhaarValidationService {
     if (validVerhoeffFound) {
       score += 30;
       reasons.push('Valid 12-digit Aadhaar number with Verhoeff checksum verified');
-    } else {
-      if (/(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*\d{4})/.test(combinedText)) {
-        score += 20;
-        reasons.push('Masked Aadhaar pattern detected');
-      }
+    } else if (/(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*\d{4})/.test(combinedText)) {
+      score += 20;
+      reasons.push('Masked Aadhaar pattern detected');
     }
 
-    // 5. DOB / Gender / Pincode
     if (/(?:dob|d\.o\.b|date of birth|year of birth|\b\d{2}[/-]\d{2}[/-]\d{4}\b)/i.test(combinedText)) {
       score += 10;
     }
@@ -127,15 +140,14 @@ export class AadhaarValidationService {
     }
 
     const isValidAadhaar = score >= 35;
-
     if (!isValidAadhaar) {
       throw new AppError(
-        'The uploaded image does not appear to be a valid Aadhaar card. Please upload clear photos of an official Aadhaar card.',
+        'The uploaded images do not meet the minimum confidence score for an official Aadhaar card.',
         HTTP_STATUS.BAD_REQUEST
       );
     }
 
-    // 6. Check for Front and Back Card Ownership Matching
+    // 5. Verify that Front and Back images belong to the SAME card
     this.verifyMatchingCards(frontText, backText);
 
     return {
@@ -143,6 +155,34 @@ export class AadhaarValidationService {
       score,
       reasons
     };
+  }
+
+  /**
+   * Checks whether the front image contains mandatory front-side Aadhaar indicators.
+   */
+  private isFrontSideAadhaar(lowerFront: string): boolean {
+    // Has front keywords
+    const hasFrontKeyword = AadhaarValidationService.FRONT_KEYWORDS.some(kw => lowerFront.includes(kw));
+    // Has 12-digit Aadhaar pattern or masked Aadhaar pattern
+    const hasNumberPattern = /\b\d{4}\s?\d{4}\s?\d{4}\b/.test(lowerFront) || /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*\d{4})/.test(lowerFront);
+    // Has Date of Birth pattern
+    const hasDobPattern = /(?:dob|d\.o\.b|date of birth|year of birth|\b\d{2}[/-]\d{2}[/-]\d{4}\b)/i.test(lowerFront);
+
+    return hasFrontKeyword || (hasNumberPattern && hasDobPattern);
+  }
+
+  /**
+   * Checks whether the back image contains mandatory back-side Aadhaar indicators.
+   */
+  private isBackSideAadhaar(lowerBack: string): boolean {
+    // Has back keywords (address, uidai, pincode, helpdesk)
+    const hasBackKeyword = AadhaarValidationService.BACK_KEYWORDS.some(kw => lowerBack.includes(kw));
+    // Has 6-digit Pincode
+    const hasPincode = /\b\d{6}\b/.test(lowerBack);
+    // Has 12-digit Aadhaar pattern or masked pattern
+    const hasNumberPattern = /\b\d{4}\s?\d{4}\s?\d{4}\b/.test(lowerBack) || /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*\d{4})/.test(lowerBack);
+
+    return hasBackKeyword || (hasPincode && hasNumberPattern);
   }
 
   /**
