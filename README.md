@@ -1,36 +1,35 @@
 # Aadhaar OCR System - Backend
 
-A secure Node.js and Express.js backend server designed to process Aadhaar card images. The service performs optical character recognition (OCR), extracts key personal details (name, Aadhaar number, date of birth, gender, and address), performs cross-image verification, and returns clean, structured data.
+A secure Node.js, Express.js, and TypeScript backend server designed to process Aadhaar card images. The service performs optical character recognition (OCR), extracts key personal details (name, Aadhaar number, date of birth, gender, and address), performs cross-image verification with Verhoeff checksum validation, and returns clean, structured data via Data Transfer Objects (DTOs).
 
 ---
 
 ## Features
 
-- **Strict Schema Validation**: Uses Zod to validate incoming multipart form requests, verifying that both files are present, are valid image mime-types (JPEG/PNG), and do not exceed the 2MB size limit.
-- **Tesseract.js OCR Integration**: Runs OCR processing on memory buffers with custom config parameters (`tessedit_pageseg_mode: 11` for sparse text layout) to optimize raw text detection.
-- **Advanced Text Parsing Engine**: 
-  - Sanitizes raw text by removing non-ASCII and junk OCR artifacts.
-  - Resolves names using contextual anchors (names above/surrounding keywords like "DOB", "Date of Birth", "Year of Birth", and gender lines).
-  - Resolves addresses by parsing structured labels ("Address:", "Address", "S/O", "W/O", "D/O") and falls back to locating PIN codes and matching postal sequences.
-  - Normalizes genders (Male, Female, Transgender).
-  - Normalizes date strings to standard formats.
-- **Consistency Verification**: Checks that the Aadhaar number extracted from the front side exactly matches the Aadhaar number extracted from the back side. Throws a validation error if there is a discrepancy.
-- **Unified API Responses**: Utilizes a standardized `ApiResponse` wrapper class to return clean JSON envelopes for success, failure, and error responses.
-- **Global Error Handling**: Wraps controllers with a `catchAsync` utility to guarantee unhandled rejection safety and routes all application exceptions through a centralized error-handling middleware.
-- **Clean Configuration**: Uses `.env` configuration for server ports and CORS origins.
-- **No In-Code Comments**: Follows a clean code approach with zero unnecessary inline comments.
+- **TypeScript Architecture**: Built with strict type safety, interfaces, DTOs, and modular data mappers.
+- **Dependency Injection Container**: Decouples services, OCR engines, and controllers (`dependencyInjection.ts`) for high testability and clean architecture.
+- **Centralized Constants System**: Extracted all error messages, HTTP status codes, and front/back document detection keywords into modular files under `src/constants/` (e.g., `aadhaarKeywords.ts`).
+- **Strict Payload Validation**: Uses Zod (`aadhaar.schema.ts`) to validate incoming multipart form requests, verifying file presence, image MIME types (JPEG/PNG), and file size limits (max 2MB).
+- **Tesseract.js OCR Engine Integration**: Wrapped OCR processing behind an engine contract (`IOcrEngine.interface.ts`) configured for sparse text layout (`tessedit_pageseg_mode: 11`).
+- **Aadhaar Validation & Verification Engine**:
+  - Performs confidence scoring on detected front and back keywords.
+  - Verifies 12-digit Aadhaar numbers against the **Verhoeff Checksum algorithm**.
+  - Ensures front and back uploads belong to the same card via digit sequence matching and suffix checks.
+- **Advanced Text Parsing & Mapping**: Sanitizes OCR noise, contextualizes names, addresses (using PIN code matching & labels), gender, and dates before returning typed `AadhaarResponseDto` payloads.
+- **Unified API Envelopes & Error Safety**: Returns standardized `ApiResponse` JSON wrappers and routes async exceptions through `catchAsync` into a centralized `errorHandler` middleware.
 
 ---
 
 ## Tech Stack
 
 - **Runtime Environment**: Node.js
+- **Language**: TypeScript
 - **Framework**: Express.js
 - **OCR Engine**: Tesseract.js
-- **Multipart Data Handler**: Multer (in-memory storage)
-- **Input Validation**: Zod
-- **Linter**: ESLint (v9 Flat Config)
-- **Development Monitor**: Nodemon
+- **Execution & Development**: `tsx` (TypeScript Execution Engine)
+- **Multipart Handling**: Multer (in-memory buffer storage)
+- **Schema Validation**: Zod
+- **Linter**: ESLint (v9 Flat Config with `typescript-eslint`)
 
 ---
 
@@ -39,34 +38,49 @@ A secure Node.js and Express.js backend server designed to process Aadhaar card 
 ```text
 Backend/
 ├── src/
-│   ├── config/              # Server configurations
-│   │   └── cors.js
-│   ├── constants/           # HTTP codes and system messages
-│   │   ├── httpMessage.js
-│   │   ├── httpStatus.js
-│   │   └── index.js
+│   ├── config/              # Server & dependency injection configurations
+│   │   ├── cors.ts
+│   │   └── dependencyInjection.ts
+│   ├── constants/           # HTTP codes, error messages & document keywords
+│   │   ├── aadhaarKeywords.ts
+│   │   ├── errorMessages.ts
+│   │   ├── httpMessage.ts
+│   │   ├── httpStatus.ts
+│   │   └── index.ts
 │   ├── controllers/         # Thin request route handlers
-│   │   └── ocr.controller.js
-│   ├── middleware/          # Security, validation, and error interceptors
-│   │   ├── errorHandler.js
-│   │   ├── upload.js
-│   │   └── validate.js
+│   │   └── OcrController.ts
+│   ├── dtos/                # Data Transfer Objects
+│   │   └── AadhaarResponseDto.ts
+│   ├── interfaces/          # Service & engine contracts
+│   │   ├── IAadhaarOcrService.interface.ts
+│   │   └── IOcrEngine.interface.ts
+│   ├── mappers/             # Data transformation & payload mapping
+│   │   └── aadhaar.mapper.ts
+│   ├── middleware/          # Security, upload, validation & error interceptors
+│   │   ├── errorHandler.ts
+│   │   ├── upload.ts
+│   │   └── validate.ts
 │   ├── routes/              # Express endpoint routing
-│   │   └── ocr.routes.js
-│   ├── services/            # Core business & OCR engine operations
-│   │   └── ocr.service.js
-│   ├── utils/               # Sanitizers, parsers, and custom helpers
-│   │   ├── ApiResponse.js
-│   │   ├── AppError.js
-│   │   ├── aadhaarParser.js
-│   │   └── catchAsync.js
-│   └── validations/         # Zod schemas for payload checks
-│       └── ocr.validation.js
+│   │   └── ocr.routes.ts
+│   ├── services/            # Core business, OCR engine & validation logic
+│   │   ├── AadhaarOcrService.ts
+│   │   ├── AadhaarValidationService.ts
+│   │   └── TesseractOcrEngine.ts
+│   ├── types/               # TypeScript type definitions
+│   │   └── aadhaar.types.ts
+│   ├── utils/               # Sanitizers, parsers, Verhoeff checksum & helpers
+│   │   ├── ApiResponse.ts
+│   │   ├── AppError.ts
+│   │   ├── aadhaarParser.ts
+│   │   ├── catchAsync.ts
+│   │   └── verhoeff.ts
+│   └── validations/         # Zod schemas for request checks
+│       └── aadhaar.schema.ts
 ├── .env                     # Server environment settings
-├── app.js                   # Express App pipeline configuration
 ├── eslint.config.js         # ESLint Rules
 ├── package.json             # Scripts and module dependencies
-├── server.js                # Server entry listener
+├── server.ts                # Server entry point
+├── tsconfig.json            # TypeScript configuration
 └── README.md                # Documentation guide
 ```
 
@@ -76,7 +90,7 @@ Backend/
 
 ### Prerequisites
 
-Make sure you have **Node.js (v18 or higher)** installed on your machine.
+Make sure you have **Node.js (v18 or higher)** and **npm** installed on your machine.
 
 ### 1. Install Dependencies
 
@@ -89,7 +103,7 @@ npm install
 
 ### 2. Configure Environment Variables
 
-Create a file named `.env` in the root of the `Backend/` directory and configure the environment variables:
+Create a file named `.env` in the root of the `Backend/` directory:
 
 ```env
 PORT=5000
@@ -98,13 +112,14 @@ CORS_ORIGIN=http://localhost:5173
 
 ### 3. Run the Server
 
-#### Development Mode (Auto-restart via Nodemon)
+#### Development Mode (Auto-reloading via `tsx`)
 ```bash
 npm run dev
 ```
 
-#### Production Mode
+#### Production Build & Start
 ```bash
+npm run build
 npm start
 ```
 
@@ -116,11 +131,15 @@ Health Check: http://localhost:5000/api/status
 =========================================
 ```
 
-### 4. Code Quality & Linting
+### 4. Code Quality & Build Verification
 
-Ensure that files are conforming to the strict ESLint rules:
+Run TypeScript compilation and lint checks:
 
 ```bash
+# Check TypeScript types & compile
+npm run build
+
+# Run ESLint check
 npm run lint
 ```
 
@@ -142,7 +161,7 @@ Check if the backend server is operational.
   ```
 
 ### 2. Process Aadhaar OCR
-Submit front and back Aadhaar images for data extraction.
+Submit front and back Aadhaar images for validation and data extraction.
 
 - **URL**: `/api/ocr`
 - **Method**: `POST`
