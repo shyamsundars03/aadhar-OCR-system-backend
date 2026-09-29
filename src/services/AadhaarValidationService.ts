@@ -2,6 +2,7 @@ import { validateVerhoeff } from '../utils/verhoeff.js';
 import { parse } from '../utils/aadhaarParser.js';
 import AppError from '../utils/AppError.js';
 import { HTTP_STATUS } from '../constants/httpStatus.js';
+import { AADHAAR_FRONT_KEYWORDS, AADHAAR_BACK_KEYWORDS } from '../constants/aadhaarKeywords.js';
 
 export interface IAadhaarVerificationResult {
   isValidAadhaar: boolean;
@@ -10,36 +11,7 @@ export interface IAadhaarVerificationResult {
 }
 
 export class AadhaarValidationService {
-  private static FRONT_KEYWORDS = [
-    'government of india',
-    'bharat sarkar',
-    'unique identification authority',
-    'authority of india',
-    'uidai',
-    'aadhaar',
-    'adhar',
-    'dob',
-    'date of birth',
-    'year of birth',
-    'yob',
-    'male',
-    'female',
-    'भारत सरकार'
-  ];
 
-  private static BACK_KEYWORDS = [
-    'address',
-    'पता',
-    'unique identification authority',
-    'uidai',
-    's/o',
-    'd/o',
-    'w/o',
-    'c/o',
-    'help@uidai.gov.in',
-    'www.uidai.gov.in',
-    '1947'
-  ];
 
   public verifyDocument(frontText: string, backText: string): IAadhaarVerificationResult {
     const lowerFront = (frontText || '').toLowerCase();
@@ -89,7 +61,7 @@ export class AadhaarValidationService {
     const reasons: string[] = [];
 
     let frontKeywordCount = 0;
-    for (const kw of AadhaarValidationService.FRONT_KEYWORDS) {
+    for (const kw of AADHAAR_FRONT_KEYWORDS) {
       if (lowerFront.includes(kw)) {
         frontKeywordCount++;
       }
@@ -100,7 +72,7 @@ export class AadhaarValidationService {
     }
 
     let backKeywordCount = 0;
-    for (const kw of AadhaarValidationService.BACK_KEYWORDS) {
+    for (const kw of AADHAAR_BACK_KEYWORDS) {
       if (lowerBack.includes(kw)) {
         backKeywordCount++;
       }
@@ -162,7 +134,7 @@ export class AadhaarValidationService {
    */
   private isFrontSideAadhaar(lowerFront: string): boolean {
     // Has front keywords
-    const hasFrontKeyword = AadhaarValidationService.FRONT_KEYWORDS.some(kw => lowerFront.includes(kw));
+    const hasFrontKeyword = AADHAAR_FRONT_KEYWORDS.some(kw => lowerFront.includes(kw));
     // Has 12-digit Aadhaar pattern or masked Aadhaar pattern
     const hasNumberPattern = /\b\d{4}\s?\d{4}\s?\d{4}\b/.test(lowerFront) || /(?:[Xx*]{4}[-\s]*[Xx*]{4}[-\s]*\d{4})/.test(lowerFront);
     // Has Date of Birth pattern
@@ -176,7 +148,7 @@ export class AadhaarValidationService {
    */
   private isBackSideAadhaar(lowerBack: string): boolean {
     // Has back keywords (address, uidai, pincode, helpdesk)
-    const hasBackKeyword = AadhaarValidationService.BACK_KEYWORDS.some(kw => lowerBack.includes(kw));
+    const hasBackKeyword = AADHAAR_BACK_KEYWORDS.some(kw => lowerBack.includes(kw));
     // Has 6-digit Pincode
     const hasPincode = /\b\d{6}\b/.test(lowerBack);
     // Has 12-digit Aadhaar pattern or masked pattern
